@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ur"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roadster Flip 99</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark;--bg:#0a0e1a;--fg:#fff;--pn:rgba(255,255,255,.14)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#0a0e1a;--fg:#fff}}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
+body{display:flex;flex-direction:column}
+#top{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;font-weight:600;font-size:14px}
+#top button{background:var(--pn);color:var(--fg);border:0;border-radius:8px;padding:6px 12px;font-size:16px}
+#cw{flex:1;position:relative;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#msg{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:15px;text-shadow:0 1px 4px #000;padding:0 12px}
+#ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(0,0,0,.6);text-align:center;padding:20px}
+#ov h2{margin:0;font-size:26px}
+#ov button{background:#e31937;color:#fff;border:0;border-radius:10px;padding:12px 26px;font-size:18px;font-weight:700}
+#ctl{display:flex;gap:10px;padding:10px 12px;justify-content:space-between}
+#ctl button{flex:1;padding:18px 0;font-size:20px;font-weight:700;border:0;border-radius:12px;background:var(--pn);color:var(--fg);touch-action:none}
+#ctl #bg{background:#e31937;flex:1.4}
+#ctl button.on{filter:brightness(1.5)}
+</style></head><body>
+<div id="top"><button id="pl">◀</button><span id="lv"></span><button id="nl">▶</button></div>
+<div id="cw"><canvas id="c"></canvas><div id="msg"></div>
+<div id="ov"><h2 id="oh"></h2><div id="ot"></div><button id="ob">OK</button></div></div>
+<div id="ctl"><button id="bl">⟲ Back flip</button><button id="br">Front flip ⟳</button><button id="bg">GAS 🔥</button></div>
+<script>
+const $=id=>document.getElementById(id),cv=$('c'),ctx=cv.getContext('2d');
+let W,H,D;
+function rs(){D=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;ctx.setTransform(D,0,0,D,0,0)}
+addEventListener('resize',rs);
+let maxL=1;try{maxL=+localStorage.getItem('rf')||1}catch(e){}
+const G=700,HH=23,TAU=Math.PI*2,keys={};
+let L=maxL,S,car,st,camY,stars=[];
+for(let i=0;i<80;i++)stars.push([Math.random(),Math.random()*.6,Math.random()*1.6+.4]);
+function setup(l){
+  L=Math.max(1,Math.min(99,l));
+  const v=900+L*8,F=1+Math.floor((L-1)/25),rampX=1200,rampEnd=1450,vy=.707*v;
+  const t=(vy+Math.sqrt(vy*vy+2*G*250))/G,padX=rampEnd+.707*v*t;
+  S={v,F,rampX,rampEnd,padX,fin:padX+1400};
+  car={x:0,y:-HH,a:0,sp:0,vx:0,vy:0,av:0,rot:0};
+  st='ready';camY=-HH;$('ov').style.display='none';
+  msg('GAS dabao, ramp se jump karo aur '+F+' flip lagao, phir pehye ke bal land karo!');
+  $('lv').textContent='Level '+L+' / 99  •  Flips: '+F;
+}
+function msg(t){$('msg').textContent=t}
+function h(x){return x<S.rampX?0:x<S.rampEnd?-(x-S.rampX):0}
+function ang(a){return ((a+Math.PI)%TAU+TAU)%TAU-Math.PI}
+function over(title,txt,btn,fn){st='over';$('oh').textContent=title;$('ot').textContent=txt;$('ob').textContent=btn;$('ob').onclick=fn;$('ov').style.display='flex'}
+function upd(dt){
+  const gas=keys.g,r=(keys.r?1:0)-(keys.l?1:0);
+  if(st==='ready'&&gas)st='drive';
+  if(st==='drive'||st==='land'){
+    if(st==='drive'){car.sp+=(gas?500:-300)*dt;car.sp=Math.max(0,Math.min(S.v,car.sp))}
+    const onR=car.x>=S.rampX&&car.x<S.rampEnd,ta=onR?-Math.PI/4:0;
+    car.a+=(ta-car.a)*Math.min(1,10*dt);
+    car.x+=car.sp*Math.cos(ta)*dt;
+    if(st==='drive'&&car.x>=S.rampEnd){
+      car.x=S.rampEnd;car.y=-250-HH;car.vx=car.sp*.707;car.vy=-car.sp*.707;car.rot=0;car.av=0;st='air';
+    }else{
+      car.y=h(car.x)-HH;
+      if(st==='land'&&car.x>=S.fin){
+        if(L>=maxL&&L<99){maxL=L+1;try{localStorage.setItem('rf',maxL)}catch(e){}}
+        L<99?over('🏁 Level '+L+' complete!','Agla level aur mushkil hai.','Next level ▶',()=>setup(L+1)):over('🏆 Tum ne Level 99 jeet liya!','Tum asli Roadster legend ho.','Dobara khelo',()=>setup(1));
+      }
+    }
+  }else if(st==='air'){
+    car.vy+=G*dt;car.x+=car.vx*dt;car.y+=car.vy*dt;
+    car.av+=(r*10-car.av)*Math.min(1,8*dt);car.a+=car.av*dt;car.rot+=car.av*dt;
+    msg('Flips: '+Math.round(Math.abs(car.rot)/TAU)+' / '+S.F);
+    if(car.y+HH>=0){
+      const flips=Math.round(Math.abs(car.rot)/TAU),ok=Math.abs(ang(car.a))<.8;
+      car.y=-HH;
+      if(!ok){car.a=ang(car.a);over('💥 Crash!','Ulta/tirchha land hua. Pehye neeche rakho.','Dobara try',()=>setup(L))}
+      else if(flips<S.F){car.a=ang(car.a);over('Kam flips','Sirf '+flips+' flip lage, '+S.F+' chahiye the.','Dobara try',()=>setup(L))}
+      else{car.a=ang(car.a);car.sp=car.vx;st='land';
+        msg(Math.abs(car.x-S.padX)<250?'🎯 PERFECT LANDING! Tesla jaisi!':'✅ Safe landing! Ab finish tak chalo.')}
+    }
+  }
+  camY+=(car.y-camY)*Math.min(1,4*dt);
+}
+let wr=0;
+function drawTrack(cx,sc,Y,X){
+  ctx.fillStyle='#141b38';ctx.beginPath();ctx.moveTo(0,H);
+  for(let sx=0;sx<=W+10;sx+=10){const wx=cx*.25+sx/sc;ctx.lineTo(sx,H*.62-(Math.sin(wx*.004)*40+Math.sin(wx*.011)*20+60)*sc)}
+  ctx.lineTo(W,H);ctx.fill();
+  const top=[];for(let sx=0;sx<=W+6;sx+=6)top.push([sx,Y(h(cx+sx/sc))]);
+  const g=ctx.createLinearGradient(0,Y(0),0,Y(0)+220*sc);g.addColorStop(0,'#33363f');g.addColorStop(1,'#101216');
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,H);top.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.lineTo(W,H);ctx.fill();
+  const x0=cx-100,x1=cx+W/sc+100;
+  // ramp steel + hazard stripes
+  const rg=ctx.createLinearGradient(0,Y(-250),0,Y(0));rg.addColorStop(0,'#8b93a3');rg.addColorStop(1,'#4a505d');
+  ctx.fillStyle=rg;ctx.beginPath();ctx.moveTo(X(S.rampX),Y(0));ctx.lineTo(X(S.rampEnd),Y(-250));ctx.lineTo(X(S.rampEnd),Y(0));ctx.fill();
+  ctx.setLineDash([22*sc,22*sc]);ctx.strokeStyle='#ffc400';ctx.lineWidth=7*sc;ctx.beginPath();ctx.moveTo(X(S.rampX),Y(0)+10*sc);ctx.lineTo(X(S.rampEnd),Y(-250)+10*sc);ctx.stroke();ctx.setLineDash([]);
+  // lane dashes
+  ctx.fillStyle='#e8e8e8';
+  for(let wx=Math.floor(x0/160)*160;wx<x1;wx+=160){if(wx<S.rampX-80||wx>S.rampEnd+10)ctx.fillRect(X(wx),Y(0)+18*sc,70*sc,4*sc)}
+  // curb (red/white)
+  for(let wx=Math.floor(x0/10)*10;wx<x1;wx+=10){
+    ctx.fillStyle=(Math.floor(wx/60)&1)?'#e31937':'#f2f2f2';
+    ctx.beginPath();ctx.moveTo(X(wx),Y(h(wx)));ctx.lineTo(X(wx+10),Y(h(wx+10)));ctx.lineTo(X(wx+10),Y(h(wx+10))+7*sc);ctx.lineTo(X(wx),Y(h(wx))+7*sc);ctx.fill();
+  }
+  // street lamps
+  for(let wx=Math.floor(x0/400)*400;wx<x1;wx+=400){
+    if(wx>S.rampX-60&&wx<S.rampEnd+60)continue;
+    ctx.strokeStyle='#555a66';ctx.lineWidth=4*sc;ctx.beginPath();ctx.moveTo(X(wx),Y(0));ctx.lineTo(X(wx),Y(-110));ctx.lineTo(X(wx+30),Y(-118));ctx.stroke();
+    const lg=ctx.createRadialGradient(X(wx+30),Y(-116),0,X(wx+30),Y(-116),70*sc);lg.addColorStop(0,'rgba(255,230,150,.55)');lg.addColorStop(1,'rgba(255,230,150,0)');
+    ctx.fillStyle=lg;ctx.fillRect(X(wx-60),Y(-190),180*sc,190*sc);
+    ctx.fillStyle='#fff4c2';ctx.beginPath();ctx.arc(X(wx+30),Y(-116),4*sc,0,TAU);ctx.fill();
+  }
+  // car shadow
+  if(st==='air'){const ht=Math.max(0,-car.y-HH),al=.45/(1+ht/200),rx=60*sc/(1+ht/500);
+    ctx.fillStyle='rgba(0,0,0,'+al+')';ctx.beginPath();ctx.ellipse(X(car.x),Y(0)+4*sc,rx,6*sc,0,0,TAU);ctx.fill()}
+}
+function wheel(x,y){
+  ctx.fillStyle='#4a0a12';ctx.beginPath();ctx.arc(x,y,15,0,TAU);ctx.fill();
+  ctx.fillStyle='#0d0d10';ctx.beginPath();ctx.arc(x,y,12,0,TAU);ctx.fill();
+  const rg=ctx.createRadialGradient(x,y,1,x,y,8.5);rg.addColorStop(0,'#f2f4f8');rg.addColorStop(1,'#8d95a5');
+  ctx.fillStyle=rg;ctx.beginPath();ctx.arc(x,y,8.5,0,TAU);ctx.fill();
+  ctx.strokeStyle='#4d5463';ctx.lineWidth=1.8;
+  for(let i=0;i<5;i++){const a=wr+i*TAU/5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*8,y+Math.sin(a)*8);ctx.stroke()}
+  ctx.fillStyle='#222';ctx.beginPath();ctx.arc(x,y,2.5,0,TAU);ctx.fill();
+}
+function drawCar(){
+  const gas=keys.g&&(st==='drive'||st==='air');
+  // headlight beam
+  const bg=ctx.createLinearGradient(54,0,150,0);bg.addColorStop(0,'rgba(255,245,200,.35)');bg.addColorStop(1,'rgba(255,245,200,0)');
+  ctx.fillStyle=bg;ctx.beginPath();ctx.moveTo(55,-4);ctx.lineTo(150,-22);ctx.lineTo(150,14);ctx.fill();
+  // rocket flame
+  if(gas){const fl=30+Math.random()*30,fg=ctx.createLinearGradient(-58,0,-58-fl,0);fg.addColorStop(0,'#fff6b0');fg.addColorStop(.4,'#ff9a1a');fg.addColorStop(1,'rgba(255,60,0,0)');
+    ctx.fillStyle=fg;for(const fy of[-1,6]){ctx.beginPath();ctx.moveTo(-58,fy-3);ctx.lineTo(-58-fl,fy+1.5);ctx.lineTo(-58,fy+6);ctx.fill()}}
+  // body
+  const bd=ctx.createLinearGradient(0,-22,0,12);bd.addColorStop(0,'#ff5a6a');bd.addColorStop(.45,'#d4162f');bd.addColorStop(1,'#6e0816');
+  ctx.fillStyle=bd;ctx.beginPath();
+  ctx.moveTo(-56,9);ctx.lineTo(-57,-1);ctx.quadraticCurveTo(-56,-7,-46,-8);ctx.lineTo(-26,-10);
+  ctx.quadraticCurveTo(-18,-15,-8,-15);ctx.lineTo(6,-15);ctx.quadraticCurveTo(14,-21,22,-14);ctx.lineTo(26,-12);
+  ctx.quadraticCurveTo(44,-9,54,-3);ctx.quadraticCurveTo(59,0,57,6);ctx.lineTo(56,9);ctx.closePath();ctx.fill();
+  // wheel arches
+  ctx.fillStyle='#0b0b0f';ctx.beginPath();ctx.arc(-34,12,15,Math.PI,TAU);ctx.fill();ctx.beginPath();ctx.arc(34,12,15,Math.PI,TAU);ctx.fill();
+  // skirt, shoulder line, doors
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(-20,6,40,3);
+  ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-52,-4);ctx.quadraticCurveTo(0,-9,52,-2);ctx.stroke();
+  ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-14,-13);ctx.lineTo(-16,6);ctx.moveTo(18,-12);ctx.lineTo(20,5);ctx.stroke();
+  // driver + windshield
+  ctx.fillStyle='#1c1c22';ctx.beginPath();ctx.arc(-4,-19,5,0,TAU);ctx.fill();ctx.fillRect(-9,-16,10,3);
+  ctx.fillStyle='rgba(170,220,255,.85)';ctx.beginPath();ctx.moveTo(8,-15);ctx.lineTo(15,-20.5);ctx.quadraticCurveTo(20,-19,24,-12);ctx.lineTo(10,-13);ctx.fill();
+  // lights + badge
+  ctx.fillStyle='#fff7d0';ctx.beginPath();ctx.ellipse(51,-3,4,2.2,.3,0,TAU);ctx.fill();
+  ctx.fillStyle=(!keys.g&&st!=='ready')?'#ff5a5a':'#c01818';ctx.fillRect(-57,-4,3,6);
+  ctx.fillStyle='#e6e8ee';ctx.font='bold 7px sans-serif';ctx.textAlign='center';ctx.fillText('T',-44,3);
+  wheel(-34,12);wheel(34,12);
+}
+function draw(){
+  const sc=Math.min(W,H*1.6)/1000,cx=car.x-W*.3/sc,oy=H*.58,Y=y=>(y-camY)*sc+oy,X=x=>(x-cx)*sc;
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#05081a');g.addColorStop(1,'#26396b');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';for(const s of stars){ctx.globalAlpha=.7;ctx.fillRect(s[0]*W,s[1]*H,s[2],s[2])}ctx.globalAlpha=1;
+  drawTrack(cx,sc,Y,X);
+  // landing pad
+  ctx.fillStyle='#19c37d';ctx.fillRect(X(S.padX-250),Y(0)-3,500*sc,8*sc+3);
+  ctx.fillStyle='#fff';ctx.font='bold '+(40*sc)+'px sans-serif';ctx.textAlign='center';ctx.fillText('X',X(S.padX),Y(0)+36*sc);
+  // finish
+  ctx.fillStyle='#fff';ctx.fillRect(X(S.fin),Y(0)-120*sc,5*sc,120*sc);
+  ctx.fillStyle='#e31937';ctx.fillRect(X(S.fin)+5*sc,Y(0)-120*sc,50*sc,35*sc);
+  ctx.save();ctx.translate(X(car.x),Y(car.y));ctx.scale(sc,sc);ctx.rotate(car.a);drawCar();ctx.restore();
+}
+let last=0;
+function loop(t){const dt=Math.min(.033,(t-last)/1000||0);last=t;if(st!=='over')upd(dt);wr+=((st==='air'?car.vx:car.sp)||0)*dt/12;draw();requestAnimationFrame(loop)}
+function bind(id,k){const b=$(id);
+  const on=e=>{e.preventDefault();keys[k]=true;b.classList.add('on')},off=e=>{e.preventDefault();keys[k]=false;b.classList.remove('on')};
+  b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off)}
+bind('bl','l');bind('br','r');bind('bg','g');
+const km={ArrowLeft:'l',a:'l',A:'l',ArrowRight:'r',d:'r',D:'r',ArrowUp:'g',w:'g',W:'g',' ':'g'};
+addEventListener('keydown',e=>{if(km[e.key]){keys[km[e.key]]=true;e.preventDefault()}});
+addEventListener('keyup',e=>{if(km[e.key])keys[km[e.key]]=false});
+$('pl').onclick=()=>setup(L-1);$('nl').onclick=()=>{if(L<maxL)setup(L+1)};
+rs();setup(L);requestAnimationFrame(loop);
+</script></body></html>
